@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Company></Company>
+    <Authors>CSharpBender</Authors>
+    <Product>NHibernate Unit Of Work</Product>
+    <PackageId>NHUnit</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.1.1" />
+    <PackageReference Include="NHibernate" Version="5.3.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\images\NHUnit.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
+    <AssemblyName>NHUnit</AssemblyName>
+    <Description>A powerful Unit of Work implementation for NHibernate which fixes proxy issues and simplifies child nodes loading.</Description>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageReleaseNotes>Release of NHibernate Unit of Work</PackageReleaseNotes>
+    <PackageTags>Fluent, NHibernate, Unit of Work, ORM, DataBase, Core, Async</PackageTags>
+    <RepositoryType>GitHub</RepositoryType>
+    <RepositoryUrl>https://github.com/CSharpBender/NHUnit</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/CSharpBender/NHUnit</PackageProjectUrl>
+    <PackageIcon>NHUnit.png</PackageIcon>
+    <Copyright>CSharpBender</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" />
+    </ItemGroup>
+  </Target>
+</Project>
