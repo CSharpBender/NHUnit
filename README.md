@@ -78,3 +78,12 @@ In some rare cases you need to execute your own queries and NHUnit provides this
 - ExecuteListAsync
 - ExecuteScalarAsync
 - ExecuteNonQueryAsync
+
+```csharp
+var sqlQuery = @"select Id as CustomerId,
+                        Concat(FirstName,' ',LastName) as FullName,
+                        BirthDate
+                        from ""Customer""
+                        where Id= :customerId";
+var customResult = await _dbContext.ExecuteScalarAsync<SqlQueryCustomResult>(sqlQuery, new { customerId = 11 });
+```

@@ -72,7 +72,7 @@ namespace NHUnitExample.Controllers
                  {
                      Name = "Product " + i,
                      Colors = new List<Color> { colors.ElementAt(random.Next(0, colors.Count - 1)) },
-                     Price = random.Next(100, 10000)/100m
+                     Price = random.Next(100, 10000) / 100m
                  }
             ).ToList();
             await _dbContext.Products.InsertManyAsync(products, token);
@@ -234,6 +234,25 @@ namespace NHUnitExample.Controllers
                 CustomersWithEmptyCart = customersWithEmptyCart,
                 Top10ExpensiveProducts = expensiveProducts,
             });
+        }
+
+        [HttpGet("/testSqlQuery")]
+        public async Task<IActionResult> TestSqlQuery(CancellationToken token, int customerId = 11)
+        {
+            var sqlQuery = @"select Id as CustomerId,
+                                    Concat(FirstName,' ',LastName) as FullName,
+                                    BirthDate
+                             from ""Customer""
+                             where Id= :customerId";
+            var customResult = await _dbContext.ExecuteScalarAsync<SqlQueryCustomResult>(sqlQuery, new { customerId }, token);
+            return Ok(customResult);
+        }
+        class SqlQueryCustomResult
+        {
+            public SqlQueryCustomResult() { }
+            public int CustomerId { get; set; }
+            public string FullName { get; set; }
+            public DateTime BirthDate { get; set; }
         }
     }
 }

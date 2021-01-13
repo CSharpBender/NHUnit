@@ -193,6 +193,10 @@ namespace NHUnit
             if (parameters != null)
             {
                 var properties = parameters.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.GetProperty);
+                if (!properties.Any())
+                {
+                    throw new ArgumentException("Object with public properties expected for query creation", nameof(parameters));
+                }
                 foreach (var property in properties)
                 {
                     var name = property.Name;
