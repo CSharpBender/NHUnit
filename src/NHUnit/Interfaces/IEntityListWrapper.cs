@@ -24,6 +24,13 @@ namespace NHUnit
         IEntityListWrapper<T> Unproxy();
 
         /// <summary>
+        /// Instruct the framework to compute the number of results
+        /// This is just a configuration, the query is not executed until the Value is retrieved, which will execute the other deferred queries as well.
+        /// </summary>
+        /// <returns></returns>
+        ICountWrapper<T> Count();
+
+        /// <summary>
         /// Notifies framework that multi queries should be used to fetch data, using a single server roundtrip.
         /// This is just a configuration, the query is not executed until the Value is retrieved, which will execute the other deferred queries as well.
         /// </summary>

@@ -101,11 +101,7 @@ namespace NHUnit
 
         public IEntityListWrapper<T> WrapQuery<T>(IQueryable<T> query)
         {
-            return new EntityListWrapper<T>()
-            {
-                Query = query.WithOptions(o => o.SetTimeout(CommandTimeout)),
-                Session = Session
-            };
+            return new EntityListWrapper<T>(query.WithOptions(o => o.SetTimeout(CommandTimeout)), Session);
         }
 
         public void SaveChanges()
@@ -146,7 +142,7 @@ namespace NHUnit
 
         public T Unproxy<T>(T obj)
         {
-            return NhibernateHelper.Unproxy(obj, Session);
+            return NHUnitHelper.Unproxy(obj, Session);
         }
 
         public async Task<IList<T>> ExecuteListAsync<T>(string queryString, object parameters = null, CancellationToken cancellationToken = default(CancellationToken))

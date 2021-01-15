@@ -27,16 +27,22 @@ namespace NHUnit
         private ICriteria _mainCriteria;
         private IFutureValue<T> _mainFuture;
         private IEnumerable<IFutureEnumerable<T>> _childFutures;
+        private readonly object _id;
+        private readonly ISession _session;
+        private readonly int _timeoutInSeconds;
 
-        public object Id { get; set; }
-        public ISession Session { get; set; }
-        public int TimeoutInSeconds { get; set; }
+        public SingleEntityWrapper(object id, ISession session, int commandTimeout)
+        {
+            _id = id;
+            _session = session;
+            _timeoutInSeconds = commandTimeout;
+        }
 
         #region ISingleEntityWrapper
         public ISingleEntityWrapper<T> Include(params Expression<Func<T, object>>[] includeChildNodes)
         {
             CheckDeferred();
-            _childNodesInfo = NhibernateHelper.GetExpressionTreeInfo<T>(includeChildNodes, _childNodesInfo ?? new EntityNodeInfo(), true);
+            _childNodesInfo = NHUnitHelper.GetExpressionTreeInfo<T>(includeChildNodes, _childNodesInfo ?? new EntityNodeInfo(), true);
             return this;
         }
 
@@ -116,12 +122,12 @@ namespace NHUnit
 
             if (_childNodesInfo != null)
             {
-                NhibernateHelper.VisitNodes(result, Session, _childNodesInfo);
+                NHUnitHelper.VisitNodes(result, _session, _childNodesInfo);
             }
 
             if (_unproxy)
             {
-                return NhibernateHelper.Unproxy(result, Session);
+                return NHUnitHelper.Unproxy(result, _session);
             }
 
             return result;
@@ -129,7 +135,7 @@ namespace NHUnit
 
         private void CreateCriteriaOrFutures()
         {
-            _mainCriteria = Session.CreateCriteria<T>().Add(Restrictions.IdEq(Id)).SetTimeout(TimeoutInSeconds);
+            _mainCriteria = _session.CreateCriteria<T>().Add(Restrictions.IdEq(_id)).SetTimeout(_timeoutInSeconds);
             if (_childNodesInfo != null)
             {
                 bool rootHasList = false; //only one list can be joined with the main query

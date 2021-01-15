@@ -17,10 +17,11 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 
 namespace NHUnit
 {
-    internal static class NhibernateHelper
+    internal static class NHUnitHelper
     {
         public static List<T> Unproxy<T>(List<T> entityList, ISession session)
         {
@@ -48,7 +49,11 @@ namespace NHUnit
             {
                 if (!NHibernateUtil.IsInitialized(entity))
                 {
-                    return default(T);
+                    var id = session.GetIdentifier(entity);
+                    var et = NHibernateProxyHelper.GetClassWithoutInitializingProxy(entity);
+                    entity = (T)Activator.CreateInstance(et);
+                    session.SessionFactory.GetClassMetadata(et).SetIdentifier(entity,id);
+                    return entity;
                 }
                 resolvedEntity = (T)session.GetSessionImplementation().PersistenceContext.Unproxy(entity);
             }
@@ -61,8 +66,8 @@ namespace NHUnit
                 return resolvedEntity;
 
             resolvedEntities.Add(resolvedEntity);
-
             Type entityType = resolvedEntity.GetType();
+
             var entityMetadata = session.SessionFactory.GetClassMetadata(entityType);
             if (entityMetadata == null)
             {
@@ -74,6 +79,15 @@ namespace NHUnit
                         Unproxy(propValue, session, resolvedEntities);
                     }
                     return entity;
+                }
+                else if (IsList(entityType))
+                {
+                    var entityCollection = (IList)resolvedEntity;
+                    for (int i = 0; i < entityCollection.Count; i++)
+                    {
+                        entityCollection[i] = Unproxy(entityCollection[i], session, resolvedEntities);
+                    }
+                    return resolvedEntity;
                 }
                 else
                 {
@@ -150,6 +164,18 @@ namespace NHUnit
             {
                 NHibernateUtil.Initialize(obj);
             }
+        }
+
+        private static bool IsList(Type t)
+        {
+            if (t.IsGenericType)
+            {
+                return t.GetInterfaces().Any(x =>
+                    x.IsGenericType &&
+                    x.GetGenericTypeDefinition() == typeof(IList<>));
+            }
+
+            return typeof(IList).IsAssignableFrom(t);
         }
 
         public static EntityNodeInfo GetExpressionTreeInfo<T>(Expression<Func<T, object>>[] includeChildNodes, EntityNodeInfo rootNode, bool includeParent = false)

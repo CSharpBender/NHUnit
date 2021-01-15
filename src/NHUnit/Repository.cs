@@ -34,12 +34,7 @@ namespace NHUnit
 
         public ISingleEntityWrapper<T> Get(object id)
         {
-            return new SingleEntityWrapper<T>()
-            {
-                Id = id,
-                Session = Session,
-                TimeoutInSeconds = _unitOfWork.CommandTimeout
-            };
+            return new SingleEntityWrapper<T>(id, Session, _unitOfWork.CommandTimeout);
         }
 
         public IQueryable<T> All()

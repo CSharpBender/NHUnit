@@ -3,7 +3,7 @@ NHUnit is a simple but powerful Unit of Work and Repository pattern implementati
 If at some point you decide to change the ORM, you just need to provide your own implementation for just two interfaces instead of rewriting the whole application.
 NHUnit provides sync and async versions for each method.
 
-##License
+## License
 MIT: Enjoy, share, contribute to the project.
 
 
@@ -63,6 +63,30 @@ var customer = await _dbContext.Customers
                     .Unproxy() //instructs the framework to strip all the proxy classes when the Value is returned
                     .ValueAsync(token); //this is where the query(s) get executed
 ```
+
+An unproxied object will contain the foreign key ids (One to One and Many to One relations).
+For example in the above query the Cart property will be instantiated and popuplated with the Id field.
+
+
+## Multi Queries
+Using `Deferred()` you can execute multiple queries in a single server trip.
+Bellow is an example with 3 different queries that get executed in one server trip.
+
+```csharp
+//product count future
+var prodCountP = _dbContext.WrapQuery(_dbContext.Products.All())
+                           .Count().Deferred();
+
+//most expensive 10 products future
+var expProdsP = _dbContext.WrapQuery(_dbContext.Products.All().OrderByDescending(p => p.Price).Take(10))
+                          .Deferred();
+
+//get customer by id - executes all queries
+var customer = await _dbContext.Customers.Get(customerId).Deferred().ValueAsync();
+var prodCount = await prodCountP.ValueAsync(); //returns value
+var expProds = await expProdsP.ListAsync(); //returns value
+```
+
 
 ## Transactions
 IUnitOfWork exposes:

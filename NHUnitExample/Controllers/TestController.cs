@@ -195,6 +195,12 @@ namespace NHUnitExample.Controllers
         [HttpGet("/testMultipleQueries")]
         public async Task<IActionResult> TestMultipleQueries(CancellationToken token)
         {
+            //notify framework we want the total number of products
+            var redProductsCountPromise = _dbContext.WrapQuery(
+                                            _dbContext.Products.All().Where(p => p.Colors.Any(c => c.Name == "Red")))
+                                                   .Count()
+                                                   .Deferred();
+
             // notify framework we need top 10 expensive products - no execution
             var expensiveProductsPromise = _dbContext.WrapQuery(
                     _dbContext.Products.All().OrderByDescending(p => p.Price).Take(10))
@@ -228,11 +234,13 @@ namespace NHUnitExample.Controllers
             // List/ListAsync shouldn't hit the Database unless it doesn't support futures. Ex: Oracle
             var expensiveProducts = await expensiveProductsPromise.ListAsync(token);
             var lastActiveCustomer = await lastActiveCustomerPromise.ValueAsync(token);
+            var numberOfRedProducts = await redProductsCountPromise.ValueAsync(token);
             return Ok(new
             {
-                LastActiveCustomer = lastActiveCustomer,
-                CustomersWithEmptyCart = customersWithEmptyCart,
+                NumberOfRedProducts = numberOfRedProducts,
                 Top10ExpensiveProducts = expensiveProducts,
+                LastActiveCustomer = lastActiveCustomer,
+                CustomersWithEmptyCart = customersWithEmptyCart
             });
         }
 
