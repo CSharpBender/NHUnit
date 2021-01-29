@@ -11,11 +11,13 @@ using NHibernate;
 using NHibernate.Linq;
 using NHibernate.Transform;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using NHibernate.Multi;
 
 namespace NHUnit
 {
@@ -181,6 +183,58 @@ namespace NHUnit
         public void ExecuteNonQuery(string queryString, object parameters = null)
         {
             CreateQueryWithParameters(queryString, parameters).UniqueResult();
+        }
+
+        public async Task<List<IEnumerable<object>>> ExecuteMultipleQueriesAsync(string queryString, object parameters = null, CancellationToken cancellationToken = default(CancellationToken), params Type[] returnTypes)
+        {
+            return await ExecuteMultipleQueriesSyncOrAsync(false, queryString, parameters, cancellationToken, returnTypes);
+        }
+
+        public List<IEnumerable<object>> ExecuteMultipleQueries(string queryString, object parameters = null, params Type[] returnTypes)
+        {
+            return ExecuteMultipleQueriesSyncOrAsync(true, queryString, parameters, default(CancellationToken), returnTypes)
+                   .ConfigureAwait(false)
+                   .GetAwaiter()
+                   .GetResult();
+        }
+
+        protected async Task<List<IEnumerable<object>>> ExecuteMultipleQueriesSyncOrAsync(bool sync, string queryString, object parameters = null, CancellationToken cancellationToken = default(CancellationToken), params Type[] returnTypes)
+        {
+            var queries = Session.CreateQueryBatch();
+
+            for (int i = 0; i < returnTypes.Length; i++)
+            {
+                var returnType = returnTypes[i];
+                IQuery sqlQuery = i == 0 ? CreateQueryWithParameters(queryString, parameters) : Session.CreateSQLQuery(" ");
+                if (!returnType.IsValueType && returnType != typeof(string))
+                {
+                    sqlQuery.SetResultTransformer(Transformers.AliasToBean(returnType));
+                }
+                var batchQueryType = typeof(QueryBatchItem<>).MakeGenericType(returnType);
+                var batchQuery = (IQueryBatchItem)Activator.CreateInstance(batchQueryType, sqlQuery);
+                queries.Add(batchQuery);
+            }
+
+            queries.Timeout = CommandTimeout;
+            if (sync)
+            {
+                queries.Execute();
+            }
+            else
+            {
+                await queries.ExecuteAsync(cancellationToken);
+            }
+
+            var result = new List<IEnumerable<object>>();
+            MethodInfo method = typeof(IQueryBatch).GetMethod(nameof(IQueryBatch.GetResult), new Type[] { typeof(int) }, null);
+            for (int i = 0; i < returnTypes.Length; i++)
+            {
+                var generic = method.MakeGenericMethod(returnTypes[i]);
+                var queryResult = (generic.Invoke(queries, new object[] { i }) as IList)?.Cast<object>().ToList();
+                result.Add(queryResult);
+            }
+
+            return result;
         }
 
         protected IQuery CreateQueryWithParameters(string queryString, object parameters = null)

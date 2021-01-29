@@ -68,6 +68,7 @@ namespace NHUnitExample
         private ISessionFactory CreateSessionFactory()
         {
             var connectionString = Configuration.GetSection("NhibernateConfig").Get<NhibernateConfig>().ConnectionString;
+            //var dbCfg = OracleManagedDataClientConfiguration.Oracle10.Dialect<Oracle12cDialect>().ConnectionString(db => db.Is(connectionString));
             var dbCfg = PostgreSQLConfiguration.Standard.Dialect<PostgreSQL83Dialect>().ConnectionString(db => db.Is(connectionString));
             return Fluently.Configure()
                 .Database(dbCfg)

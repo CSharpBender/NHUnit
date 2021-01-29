@@ -71,7 +71,7 @@ namespace NHUnit
         T Unproxy<T>(T obj);
 
         /// <summary>
-        /// Execute query/stored procedure which returns a list
+        /// Asynchronous Query/Procedure execution which returns a list
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="queryString"></param>
@@ -81,7 +81,7 @@ namespace NHUnit
         Task<IList<T>> ExecuteListAsync<T>(string queryString, object parameters = null, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
-        /// Execute query/stored procedure which returns a list
+        /// Asynchronous Query/Procedure execution which returns a list
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="queryString"></param>
@@ -90,7 +90,7 @@ namespace NHUnit
         IList<T> ExecuteList<T>(string queryString, object parameters = null);
 
         /// <summary>
-        /// Execute query/stored procedure which returns a single value
+        /// Execute asynchronously a query/stored procedure which returns a single value
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="queryString"></param>
@@ -109,7 +109,7 @@ namespace NHUnit
         T ExecuteScalar<T>(string queryString, object parameters = null);
 
         /// <summary>
-        /// Execute query/stored procedure which has no return value
+        /// Asynchronous Query/Procedure execution which has no return value
         /// </summary>
         /// <param name="queryString"></param>
         /// <param name="parameters"></param>
@@ -118,11 +118,33 @@ namespace NHUnit
         Task ExecuteNonQueryAsync(string queryString, object parameters = null, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
-        /// Execute query/stored procedure which has no return value
+        /// Asynchronous Query/Procedure execution which has no return value
         /// </summary>
         /// <param name="queryString"></param>
         /// <param name="parameters"></param>
         void ExecuteNonQuery(string queryString, object parameters = null);
+
+
+        /// <summary>
+        /// Asynchronous Queries/Procedure execution which return multiple result sets
+        /// </summary>
+        /// <param name="queryString"></param>
+        /// <param name="parameters"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="returnTypes"></param>
+        /// <returns></returns>
+        Task<List<IEnumerable<object>>> ExecuteMultipleQueriesAsync(string queryString, object parameters = null,
+            CancellationToken cancellationToken = default(CancellationToken), params Type[] returnTypes);
+
+        /// <summary>
+        /// Execute Queries/Procedure which return multiple result sets
+        /// </summary>
+        /// <param name="queryString"></param>
+        /// <param name="parameters"></param>
+        /// <param name="returnTypes"></param>
+        /// <returns></returns>
+        List<IEnumerable<object>> ExecuteMultipleQueries(string queryString, object parameters = null,
+            params Type[] returnTypes);
 
         /// <summary>
         /// Get or Set command timeout in seconds

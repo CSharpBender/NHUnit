@@ -9,7 +9,7 @@ MIT: Enjoy, share, contribute to the project.
 
 ## Where can I get it?
 
-Install using the [NuGet package](http://nuget.org):
+Install using the [NuGet package](https://www.nuget.org/packages/NHUnit):
 
 ```
 dotnet add package NHUnit
@@ -26,16 +26,46 @@ The example project should get you going in no time with NHUnit (and NHibernate)
 
 
 ## How do I use it?
-* Check FluentNHibernateExample project
+** Check [FluentNHibernateExample](https://github.com/CSharpBender/NHUnit/tree/master/NHUnitExample/) project **
 - In `appsetting.json` update `NhibernateConfig.ConnectionString`
 - In `Startup.cs` update the `CreateSessionFactory` method with your desired Database type. It uses PostgreSql.
 - Depending on the database type you might need to update the classes from the `Mappings` folder
 - Start the project and test the endpoints in the displayed order. The database will be recreated every time the projects starts unless you comment `BuildSchema` from `Startup.cs`
+- You should replace the NHUnit project reference with the [package](https://www.nuget.org/packages/NHUnit)
 
 You can either inject IUnitOfWork and IRepository<T>'s in your controller or create your own implementation similar to EntityFramework. The example contains the custom implementation.
 
 
 # Documentation
+
+## Create your Unit of work
+Register [NHibernate.ISessionFactory](https://github.com/CSharpBender/NHUnit/blob/master/NHUnitExample/Startup.cs#L63) into your dependency injection and define the interface for your Database.
+
+```csharp
+public interface IDbContext : IUnitOfWork
+{
+    IRepository<Customer> Customers { get; }
+    IRepository<Product> Products { get; }
+}
+
+public class DbContext : UnitOfWork, IDbContext
+{
+    public DbContext(ISessionFactory sessionFactory) : base(sessionFactory, true) { }
+
+    public IRepository<Customer> Customers { get; set; }
+    public IRepository<Product> Products { get; set; }
+}
+```
+
+The framework automatically initializes all your `IRepository` properties when the second constructor parameter is true, otherwise you will need to do this yourself:
+
+```csharp
+public DbContext(ISessionFactory sessionFactory) : base(sessionFactory) {
+    Customers = new Repository<Customer>();
+    Products = new Repository<Product>();
+}
+```
+
 
 ## Eager loading
 Using lambda expressions you can specify which child properties should be populated. The framework will determine the fastest approach to load the data: using join, future queries or by using batch fetching.
@@ -102,6 +132,7 @@ In some rare cases you need to execute your own queries and NHUnit provides this
 - ExecuteListAsync
 - ExecuteScalarAsync
 - ExecuteNonQueryAsync
+- ExecuteMultipleQueries
 
 ```csharp
 var sqlQuery = @"select Id as CustomerId,

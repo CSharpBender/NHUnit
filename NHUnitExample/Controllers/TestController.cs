@@ -2,10 +2,12 @@
 using Microsoft.Extensions.Logging;
 using NHUnitExample.Entities;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using NHibernate.Util;
 using Color = NHUnitExample.Entities.Color;
 
 namespace NHUnitExample.Controllers
@@ -23,8 +25,14 @@ namespace NHUnitExample.Controllers
             _dbContext = dbContext;
         }
 
+        /// <summary>
+        /// You need to setup the database before testing any other endpoint.
+        /// At every project start the DB schema is recreated: Check Startup.cs -> BuildSchema(Configuration config)
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         [HttpGet("/initializeDatabase")]
-        public async Task<IActionResult> InitializeDatabase(CancellationToken token)
+        public async Task<IActionResult> InitializeDatabase(CancellationToken cancellationToken)
         {
             if (_dbContext.Countries.All().Any())
                 return Ok("Already initialized");
@@ -39,7 +47,7 @@ namespace NHUnitExample.Controllers
                 new Country(){ Name = "India"},
                 new Country(){ Name = "Romania"},
             };
-            await _dbContext.Countries.InsertManyAsync(countries, token);
+            await _dbContext.Countries.InsertManyAsync(countries, cancellationToken);
 
             //colors
             var colors = new List<Color>
@@ -51,7 +59,7 @@ namespace NHUnitExample.Controllers
                 new Color(){ Name = "Blue"},
                 new Color(){ Name = "Grey"},
             };
-            await _dbContext.Colors.InsertManyAsync(colors, token);
+            await _dbContext.Colors.InsertManyAsync(colors, cancellationToken);
 
             //phone number types
             var phoneNumberTypes = new List<PhoneNumberType>
@@ -60,8 +68,8 @@ namespace NHUnitExample.Controllers
                 new PhoneNumberType(){ Name = "Mobile"},
                 new PhoneNumberType(){ Name = "Business"},
             };
-            await _dbContext.PhoneNumberTypes.InsertManyAsync(phoneNumberTypes, token);
-            await _dbContext.SaveChangesAsync(token); // save changes but do not commit transaction (not required in this case)
+            await _dbContext.PhoneNumberTypes.InsertManyAsync(phoneNumberTypes, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken); // save changes but do not commit transaction (not required in this case)
 
             var random = new Random(15);
 
@@ -75,7 +83,7 @@ namespace NHUnitExample.Controllers
                      Price = random.Next(100, 10000) / 100m
                  }
             ).ToList();
-            await _dbContext.Products.InsertManyAsync(products, token);
+            await _dbContext.Products.InsertManyAsync(products, cancellationToken);
 
             //customers
             var customer = new Customer()
@@ -103,7 +111,7 @@ namespace NHUnitExample.Controllers
                       .ToList()
                       .ForEach(p => cart.Products.Add(p));
             cart.LastUpdated = DateTime.UtcNow;
-            await _dbContext.Customers.InsertAsync(customer, token);
+            await _dbContext.Customers.InsertAsync(customer, cancellationToken);
 
             //customer 2 - empty cart
             var customer2 = new Customer()
@@ -125,7 +133,7 @@ namespace NHUnitExample.Controllers
                 PhoneNumberType = phoneNumberTypes.First()
             });
             customer2.SetCart(new CustomerCart());
-            await _dbContext.Customers.InsertAsync(customer2, token);
+            await _dbContext.Customers.InsertAsync(customer2, cancellationToken);
 
             //customer 3 - basic info
             var customer3 = new Customer()
@@ -134,25 +142,38 @@ namespace NHUnitExample.Controllers
                 FirstName = "Mike",
                 LastName = "Golden"
             };
-            await _dbContext.Customers.InsertAsync(customer3, token);
+            await _dbContext.Customers.InsertAsync(customer3, cancellationToken);
 
-            await _dbContext.SaveChangesAsync(token);
-            await _dbContext.CommitTransactionAsync(token);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _dbContext.CommitTransactionAsync(cancellationToken);
             return Ok("Initialization complete");
         }
 
+        /// <summary>
+        /// A simple example of query wrap. You can join multiple entity types
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         [HttpGet("/getAllCustomers")]
-        public async Task<IActionResult> GetAllCustomer(CancellationToken token)
+        public async Task<IActionResult> GetAllCustomer(CancellationToken cancellationToken)
         {
             var customers = await _dbContext.WrapQuery(
                                                 _dbContext.Customers.All())
                                                 .Unproxy() //without this you might download the whole DB
-                                                .ListAsync(token);
+                                                .ListAsync(cancellationToken);
             return Ok(customers);
         }
 
+        /// <summary>
+        /// A simple example for loading an entity with all the nested children.
+        /// Behind the scenes it's using join, new future queries or batch fetching.
+        /// At the end it's stripping all the NHibernate proxy classes so you don't need to worry about casting or unwanted lazy loading.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <param name="customerId"></param>
+        /// <returns></returns>
         [HttpGet("/getAllForCustomer")]
-        public async Task<IActionResult> GetAllForCustomer(CancellationToken token, int customerId = 11)
+        public async Task<IActionResult> GetAllForCustomer(CancellationToken cancellationToken, int customerId = 11)
         {
             //get the customer with all nested data and execute the above query too
             var customer = await _dbContext.Customers.Get(customerId) //returns a wrapper to configure the query
@@ -160,13 +181,18 @@ namespace NHUnitExample.Controllers
                    c => c.PhoneNumbers.Single().PhoneNumberType, //include all PhoneNumbers with PhoneNumberType
                    c => c.Cart.Products.Single().Colors) //include Cart with Products and details about products
                .Unproxy() //instructs the framework to strip all the proxy classes when the Value is returned
-               .ValueAsync(token); //this is where the query(s) get executed
+               .ValueAsync(cancellationToken); //this is where the query(s) get executed
 
             return Ok(customer);
         }
 
+        /// <summary>
+        /// A simple example of projecting a query
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         [HttpGet("/testProjections")]
-        public async Task<IActionResult> TestProjections(CancellationToken token)
+        public async Task<IActionResult> TestProjections(CancellationToken cancellationToken)
         {
             int pageNumber = 3;
             int pageSize = 10;
@@ -181,7 +207,7 @@ namespace NHUnitExample.Controllers
                     Colors = p.Colors.Select(c => c.Name)
                 });
 
-            var pagedProducts = await _dbContext.WrapQuery(query).ListAsync(token);
+            var pagedProducts = await _dbContext.WrapQuery(query).ListAsync(cancellationToken);
 
             return Ok(new
             {
@@ -192,8 +218,13 @@ namespace NHUnitExample.Controllers
             });
         }
 
+        /// <summary>
+        /// Execute multiple queries in a single server trip.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         [HttpGet("/testMultipleQueries")]
-        public async Task<IActionResult> TestMultipleQueries(CancellationToken token)
+        public async Task<IActionResult> TestMultipleQueries(CancellationToken cancellationToken)
         {
             //notify framework we want the total number of products
             var redProductsCountPromise = _dbContext.WrapQuery(
@@ -227,14 +258,14 @@ namespace NHUnitExample.Controllers
                 .Deferred();
 
             //execute all deferred queries. If the Database doesn't support futures (Ex: Oracle) the query will get executed when Value() is called
-            var customersWithEmptyCart = await customersWithEmptyCartPromise.ListAsync(token);
+            var customersWithEmptyCart = await customersWithEmptyCartPromise.ListAsync(cancellationToken);
             //we can unproxy the object at any time
             customersWithEmptyCart = _dbContext.Unproxy(customersWithEmptyCart);
 
             // List/ListAsync shouldn't hit the Database unless it doesn't support futures. Ex: Oracle
-            var expensiveProducts = await expensiveProductsPromise.ListAsync(token);
-            var lastActiveCustomer = await lastActiveCustomerPromise.ValueAsync(token);
-            var numberOfRedProducts = await redProductsCountPromise.ValueAsync(token);
+            var expensiveProducts = await expensiveProductsPromise.ListAsync(cancellationToken);
+            var lastActiveCustomer = await lastActiveCustomerPromise.ValueAsync(cancellationToken);
+            var numberOfRedProducts = await redProductsCountPromise.ValueAsync(cancellationToken);
             return Ok(new
             {
                 NumberOfRedProducts = numberOfRedProducts,
@@ -244,17 +275,58 @@ namespace NHUnitExample.Controllers
             });
         }
 
+        /// <summary>
+        /// Execute your own SQL script using: ExecuteListAsync, ExecuteScalarAsync, ExecuteNonQueryAsync
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <param name="customerId"></param>
+        /// <returns></returns>
         [HttpGet("/testSqlQuery")]
-        public async Task<IActionResult> TestSqlQuery(CancellationToken token, int customerId = 11)
+        public async Task<IActionResult> TestSqlQuery(CancellationToken cancellationToken, int customerId = 11)
         {
             var sqlQuery = @"select Id as CustomerId,
                                     Concat(FirstName,' ',LastName) as FullName,
                                     BirthDate
                              from ""Customer""
                              where Id= :customerId";
-            var customResult = await _dbContext.ExecuteScalarAsync<SqlQueryCustomResult>(sqlQuery, new { customerId }, token);
+            var customResult = await _dbContext.ExecuteScalarAsync<SqlQueryCustomResult>(sqlQuery, new { customerId }, cancellationToken);
             return Ok(customResult);
         }
+
+
+        /// <summary>
+        /// Execute a procedure or multiple queries which return multiple results.
+        ///  You'll need to cast/select the right collection.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <param name="customerId"></param>
+        /// <returns></returns>
+        [HttpGet("/testDataSetQuery")]
+        public async Task<IActionResult> TestDataSetQuery(CancellationToken cancellationToken, int customerId = 11)
+        {
+            var sqlQuery = @"select Id as CustomerId,
+                                    Concat(FirstName,' ',LastName) as FullName,
+                                    BirthDate
+                             from ""Customer""
+                             where Id= :customerId;
+                            select count(*) Count from ""Customer"";";
+            var customResult = await _dbContext.ExecuteMultipleQueriesAsync(sqlQuery, //query
+                new { customerId }, //parameters: property name must be the same as the parameter
+                cancellationToken,
+                typeof(SqlQueryCustomResult), //first result type
+                typeof(long));//second result type
+
+            //The results are returned in order in it's own collection.
+            var customer = (SqlQueryCustomResult)customResult[0].FirstOrDefault(); //we might not have any results
+            var customerCount = (long)customResult[1].First(); //the time must match: it will fail with int
+
+            return Ok(new
+            {
+                Customer = customer,
+                CustomerCount = customerCount
+            });
+        }
+
         class SqlQueryCustomResult
         {
             public SqlQueryCustomResult() { }
