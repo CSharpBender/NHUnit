@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>NHUnitExample</name>
+    </assembly>
+    <members>
+        <member name="M:NHUnitExample.Controllers.TestController.InitializeDatabase(System.Threading.CancellationToken)">
+            <summary>
+            You need to setup the database before testing any other endpoint.
+            At every project start the DB schema is recreated: Check Startup.cs -> BuildSchema(Configuration config)
+            </summary>
+            <param name="cancellationToken"></param>
+            <returns></returns>
+        </member>
+        <member name="M:NHUnitExample.Controllers.TestController.GetAllCustomer(System.Threading.CancellationToken)">
+            <summary>
+            A simple example of query wrap. You can join multiple entity types
+            </summary>
+            <param name="cancellationToken"></param>
+            <returns></returns>
+        </member>
+        <member name="M:NHUnitExample.Controllers.TestController.GetAllForCustomer(System.Threading.CancellationToken,System.Int32)">
+            <summary>
+            A simple example for loading an entity with all the nested children.
+            Behind the scenes it's using join, new future queries or batch fetching.
+            At the end it's stripping all the NHibernate proxy classes so you don't need to worry about casting or unwanted lazy loading.
+            </summary>
+            <param name="cancellationToken"></param>
+            <param name="customerId"></param>
+            <returns></returns>
+        </member>
+        <member name="M:NHUnitExample.Controllers.TestController.GetAllForCustomerIds(System.Threading.CancellationToken,System.Collections.Generic.List{System.Int32})">
+            <summary>
+            A simple example for loading a list of entities by id with all the nested children.
+            It's similar to IRepository.Get(id), the only difference is that it expects a collection of ids
+            </summary>
+            <param name="token"></param>
+            <param name="customerIds"></param>
+            <returns></returns>
+        </member>
+        <member name="M:NHUnitExample.Controllers.TestController.TestProjections(System.Threading.CancellationToken)">
+            <summary>
+            A simple example of projecting a query
+            </summary>
+            <param name="cancellationToken"></param>
+            <returns></returns>
+        </member>
+        <member name="M:NHUnitExample.Controllers.TestController.TestMultipleQueries(System.Threading.CancellationToken)">
+            <summary>
+            Execute multiple queries in a single server trip.
+            </summary>
+            <param name="cancellationToken"></param>
+            <returns></returns>
+        </member>
+        <member name="M:NHUnitExample.Controllers.TestController.TestSqlQuery(System.Threading.CancellationToken,System.Int32)">
+            <summary>
+            Execute your own SQL script using: ExecuteListAsync, ExecuteScalarAsync, ExecuteNonQueryAsync
+            </summary>
+            <param name="cancellationToken"></param>
+            <param name="customerId"></param>
+            <returns></returns>
+        </member>
+        <member name="M:NHUnitExample.Controllers.TestController.TestDataSetQuery(System.Threading.CancellationToken,System.Int32)">
+            <summary>
+            Execute a procedure or multiple queries which return multiple results.
+             You'll need to cast/select the right collection.
+            </summary>
+            <param name="cancellationToken"></param>
+            <param name="customerId"></param>
+            <returns></returns>
+        </member>
+    </members>
+</doc>

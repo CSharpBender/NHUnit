@@ -1,25 +1,25 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using NHibernate.Util;
 using NHUnitExample.Entities;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using NHibernate.Util;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Color = NHUnitExample.Entities.Color;
 
 namespace NHUnitExample.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class TestController : ControllerBase
+    public class TestNHUnitController : ControllerBase
     {
-        private readonly ILogger<TestController> _logger;
+        private readonly ILogger<TestNHUnitController> _logger;
         private readonly IDbContext _dbContext;
 
-        public TestController(ILogger<TestController> logger, IDbContext dbContext)
+        public TestNHUnitController(ILogger<TestNHUnitController> logger, IDbContext dbContext)
         {
             _logger = logger;
             _dbContext = dbContext;
@@ -27,7 +27,7 @@ namespace NHUnitExample.Controllers
 
         /// <summary>
         /// You need to setup the database before testing any other endpoint.
-        /// At every project start the DB schema is recreated: Check Startup.cs -> BuildSchema(Configuration config)
+        /// At every project start the DB schema is recreated: Check Startup.cs - BuildSchema(Configuration config)
         /// </summary>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
@@ -186,6 +186,33 @@ namespace NHUnitExample.Controllers
             return Ok(customer);
         }
 
+
+        /// <summary>
+        /// A simple example for loading a list of entities by id with all the nested children.
+        /// It's similar to IRepository.Get(id), the only difference is that it expects a collection of ids
+        /// </summary>
+        /// <param name="token"></param>
+        /// <param name="customerIds"></param>
+        /// <returns></returns>
+        [HttpGet("/getAllForCustomerIds")]
+        public async Task<IActionResult> GetAllForCustomerIds(CancellationToken token, List<int> customerIds = null)
+        {
+            if (customerIds?.Count == 0)
+            {
+                customerIds = new List<int>() { 11, 12 };
+            }
+
+            //get the customer with all nested data and execute the above query too
+            var customer = await _dbContext.Customers.GetMany(customerIds) //returns a wrapper to configure the query
+                .Include(c => c.Addresses.Single().Country, //include Addresses in the result using the fastest approach: join, new query, batch fetch. Usage: c.Child1.ChildList2.Single().Child3 which means include Child1 and ChildList2 with ALL Child3 properties
+                    c => c.PhoneNumbers.Single().PhoneNumberType, //include all PhoneNumbers with PhoneNumberType
+                    c => c.Cart.Products.Single().Colors) //include Cart with Products and details about products
+                .Unproxy() //instructs the framework to strip all the proxy classes when the Value is returned
+                .ListAsync(token); //this is where the query(s) get executed
+
+            return Ok(customer);
+        }
+
         /// <summary>
         /// A simple example of projecting a query
         /// </summary>
@@ -276,13 +303,25 @@ namespace NHUnitExample.Controllers
         }
 
         /// <summary>
+        /// Increase price by 5 for all products that are cheaper than 100 without loading them in memory.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        [HttpGet("/testConditionalUpdate")]
+        public async Task<IActionResult> TestConditionalUpdate(CancellationToken cancellationToken)
+        {
+            var productCount = _dbContext.Products.UpdateWhereAsync(p => p.Price < 100, p => new { Price = p.Price + 5 }, cancellationToken);
+            return Ok($"Updated {productCount} products.");
+        }
+
+        /// <summary>
         /// Execute your own SQL script using: ExecuteListAsync, ExecuteScalarAsync, ExecuteNonQueryAsync
         /// </summary>
         /// <param name="cancellationToken"></param>
         /// <param name="customerId"></param>
         /// <returns></returns>
-        [HttpGet("/testSqlQuery")]
-        public async Task<IActionResult> TestSqlQuery(CancellationToken cancellationToken, int customerId = 11)
+        [HttpGet("/testScalarQuerySql")]
+        public async Task<IActionResult> TestScalarQuerySql(CancellationToken cancellationToken, int customerId = 11)
         {
             var sqlQuery = @"select Id as CustomerId,
                                     Concat(FirstName,' ',LastName) as FullName,
@@ -291,6 +330,34 @@ namespace NHUnitExample.Controllers
                              where Id= :customerId";
             var customResult = await _dbContext.ExecuteScalarAsync<SqlQueryCustomResult>(sqlQuery, new { customerId }, cancellationToken);
             return Ok(customResult);
+        }
+
+        /// <summary>
+        /// Execute your own SQL script to get all customers prices using ExecuteListAsync
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        [HttpGet("/testListQuerySql")]
+        public async Task<IActionResult> TestListQuerySql(CancellationToken cancellationToken)
+        {
+            var sqlQuery = @"select Id, FirstName, LastName, BirthDate  from ""Customer""";
+            var customers = await _dbContext.ExecuteListAsync<Customer>(sqlQuery, null, cancellationToken);
+            return Ok(customers);
+        }
+
+
+        /// <summary>
+        /// Execute your own SQL script to update product prices using ExecuteNonQueryAsync
+        /// </summary>
+        /// <param name="price"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        [HttpGet("/testNonQuerySql")]
+        public async Task<IActionResult> TestNonQuerySql(CancellationToken cancellationToken, int price = 5)
+        {
+            var sqlQuery = @"update ""Product"" set price=price+1 where price< :productPrice";
+            await _dbContext.ExecuteNonQueryAsync(sqlQuery, new { productPrice = price }, cancellationToken);
+            return Ok();
         }
 
 
@@ -316,9 +383,9 @@ namespace NHUnitExample.Controllers
                 typeof(SqlQueryCustomResult), //first result type
                 typeof(long));//second result type
 
-            //The results are returned in order in it's own collection.
+            //The results are returned in order in their own collection.
             var customer = (SqlQueryCustomResult)customResult[0].FirstOrDefault(); //we might not have any results
-            var customerCount = (long)customResult[1].First(); //the time must match: it will fail with int
+            var customerCount = (long)customResult[1].First(); //the type must match: it will fail with int
 
             return Ok(new
             {

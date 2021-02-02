@@ -24,7 +24,10 @@
     <AssemblyName>NHUnit</AssemblyName>
     <Description>A powerful Unit of Work implementation for NHibernate which fixes proxy issues and simplifies child nodes loading.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageReleaseNotes>Add support to execute stored procedure with multiple result sets: ExecuteMultipleQueriesAsync</PackageReleaseNotes>
+    <PackageReleaseNotes>Enhancements:
+- Load multiple objects by Id: IRepository.GetMany(ids)
+- Return the number of affected rows for DeleteWhere and UpdateWhere
+- Use existing row values in IRepository.UpdateWhereAsync</PackageReleaseNotes>
     <PackageTags>Fluent, NHibernate, Unit of Work, ORM, DataBase, Core, Async</PackageTags>
     <RepositoryType>GitHub</RepositoryType>
     <RepositoryUrl>https://github.com/CSharpBender/NHUnit</RepositoryUrl>
@@ -32,7 +35,7 @@
     <PackageIcon>NHUnit.png</PackageIcon>
     <Copyright>CSharpBender</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Version>1.1.1</Version>
+    <Version>1.2.0</Version>
   </PropertyGroup>
 
   <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">

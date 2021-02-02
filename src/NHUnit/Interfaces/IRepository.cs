@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -28,6 +29,20 @@ namespace NHUnit
         /// </code>
         /// </example>
         ISingleEntityWrapper<T> Get(object id);
+
+        /// <summary>
+        /// Get a proxy for a collection of Ids.
+        /// The DB is not hit until the values are requested
+        /// </summary>
+        /// <param name="ids"></param>
+        /// <returns></returns>
+        /// <example>
+        /// <code>
+        /// IRepository&lt;EntityType&gt; _repository;
+        /// await _repository.Get(new[]{1,2,3,4}).Include(e=&gt;e.Child1, e=&gt;e.Child2).Unproxy().ListAsync(token);
+        /// </code>
+        /// </example>
+        IMultipleEntityWrapper<T> GetMany(ICollection ids);
 
         /// <summary>
         /// Insert entity
@@ -86,20 +101,24 @@ namespace NHUnit
         Task UpdateManyAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
-        /// Update multiple entities based on condition
+        /// Update multiple entities that meet condition
         /// </summary>
-        /// <param name="filterCondition"></param>
-        /// <param name="partialEntity"></param>
+        /// <param name="filterCondition">The query matching the entities to update, e.g.
+        ///     <c>x => x.Age &lt; 18</c>.</param>
+        /// <param name="partialExpression">The assignments expressed as an anonymous object, e.g.
+        ///     <c>x => new { Name = x.Name, Age = x.Age + 5 }</c>. Unset members are ignored and left untouched.</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task UpdateWhereAsync(Expression<Func<T, bool>> filterCondition, T partialEntity, CancellationToken cancellationToken = default(CancellationToken));
+        Task<int> UpdateWhereAsync(Expression<Func<T, bool>> filterCondition, Expression<Func<T, object>> partialExpression, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
-        /// Update multiple entities based on condition
+        /// Update multiple entities that meet condition
         /// </summary>
-        /// <param name="filterCondition"></param>
-        /// <param name="partialEntity"></param>
-        void UpdateWhere(Expression<Func<T, bool>> filterCondition, T partialEntity);
+        /// <param name="filterCondition">The query matching the entities to update, e.g.
+        /// <c>x => x.Age &lt; 18</c>.</param>
+        /// <param name="partialExpression">The assignments expressed as an anonymous object, e.g.
+        /// <c>x => new { Name = x.Name, Age = x.Age + 5 }</c>. Unset members are ignored and left untouched.</param>
+        void UpdateWhere(Expression<Func<T, bool>> filterCondition, Expression<Func<T, object>> partialExpression);
 
         /// <summary>
         /// Save or update entity
@@ -163,7 +182,8 @@ namespace NHUnit
         /// <param name="filterCondition"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task DeleteWhereAsync(Expression<Func<T, bool>> filterCondition, CancellationToken cancellationToken = default(CancellationToken));
+        Task<int> DeleteWhereAsync(Expression<Func<T, bool>> filterCondition,
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Delete multiple entities that meet condition

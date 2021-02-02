@@ -13,9 +13,12 @@ using NHibernate;
 using NHibernate.Cfg;
 using NHibernate.Dialect;
 using NHibernate.Tool.hbm2ddl;
-using NHUnit;
 using Serilog;
 using Swashbuckle.AspNetCore.Swagger;
+using System;
+using System.IO;
+using System.Reflection;
+using Environment = NHibernate.Cfg.Environment;
 using ILoggerFactory = Microsoft.Extensions.Logging.ILoggerFactory;
 
 namespace NHUnitExample
@@ -55,9 +58,13 @@ namespace NHUnitExample
                 {
                     Version = "v1",
                     Title = "FluentNHibernate Test",
-                    Description = "Test NHibernate & FluentNHibernate on .netcore",
+                    Description = "Test NHUnit with FluentNHibernate on .NET Core",
                     TermsOfService = "None"
                 });
+                // Set the comments path for the Swagger JSON and UI.
+                var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                c.IncludeXmlComments(xmlPath);
             });
 
             services.AddSingleton<ISessionFactory>(CreateSessionFactory());

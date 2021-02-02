@@ -11,6 +11,7 @@ using NHibernate;
 using NHibernate.Engine;
 using NHibernate.Linq;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -35,6 +36,11 @@ namespace NHUnit
         public ISingleEntityWrapper<T> Get(object id)
         {
             return new SingleEntityWrapper<T>(id, Session, _unitOfWork.CommandTimeout);
+        }
+
+        public IMultipleEntityWrapper<T> GetMany(ICollection ids)
+        {
+            return new MultipleEntityWrapper<T>(ids, Session, _unitOfWork.CommandTimeout);
         }
 
         public IQueryable<T> All()
@@ -142,14 +148,14 @@ namespace NHUnit
             }
         }
 
-        public async Task UpdateWhereAsync(Expression<Func<T, bool>> filterCondition, T partialEntity, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<int> UpdateWhereAsync(Expression<Func<T, bool>> filterCondition, Expression<Func<T, object>> partialExpression, CancellationToken cancellationToken = default(CancellationToken))
         {
-            await Session.Query<T>().Where(filterCondition).UpdateAsync(e => partialEntity, cancellationToken);
+            return await Session.Query<T>().Where(filterCondition).UpdateAsync(partialExpression, cancellationToken);
         }
 
-        public void UpdateWhere(Expression<Func<T, bool>> filterCondition, T partialEntity)
+        public void UpdateWhere(Expression<Func<T, bool>> filterCondition, Expression<Func<T, object>> partialExpression)
         {
-            Session.Query<T>().Where(filterCondition).Update(e => partialEntity);
+            Session.Query<T>().Where(filterCondition).Update(partialExpression);
         }
 
         public async Task InsertOrUpdateAsync(T entity, CancellationToken cancellationToken = default(CancellationToken))
@@ -276,9 +282,9 @@ namespace NHUnit
             }
         }
 
-        public async Task DeleteWhereAsync(Expression<Func<T, bool>> filterCondition, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<int> DeleteWhereAsync(Expression<Func<T, bool>> filterCondition, CancellationToken cancellationToken = default(CancellationToken))
         {
-            await Session.Query<T>().Where(filterCondition).DeleteAsync(cancellationToken);
+            return await Session.Query<T>().Where(filterCondition).DeleteAsync(cancellationToken);
         }
 
         public void DeleteWhere(Expression<Func<T, bool>> filterCondition)

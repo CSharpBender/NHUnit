@@ -69,7 +69,7 @@ public DbContext(ISessionFactory sessionFactory) : base(sessionFactory) {
 
 ## Eager loading
 Using lambda expressions you can specify which child properties should be populated. The framework will determine the fastest approach to load the data: using join, future queries or by using batch fetching.
-Depending on the number of returned rows and the depth you might need to finetune your queries, but in most of the cases the framework takes the best decision.
+Depending on the number of returned rows and the depth you might need to finetune your queries, but in most cases the framework takes the best decision.
 
 ```csharp
 var customer = await _dbContext.Customers.Get(customerId) //returns a wrapper to configure the query
@@ -85,7 +85,7 @@ The expression `c.Addresses.Single().Country` will load all the nested child obj
 
 
 ## Unproxy
-You can use IUnitOfWork.Unproxy, ISingleEntityWrapper.Unproxy or IEntityListWrapper.Unproxy
+You can use Unproxy from IUnitOfWork, ISingleEntityWrapper, IMultipleEntityWrapper or IEntityListWrapper
 
 ```csharp
 var customer = await _dbContext.Customers
@@ -98,23 +98,46 @@ An unproxied object will contain the foreign key ids (One to One and Many to One
 For example in the above query the Cart property will be instantiated and popuplated with the Id field.
 
 
-## Multi Queries
+## Deferred Execution
 Using `Deferred()` you can execute multiple queries in a single server trip.
 Bellow is an example with 3 different queries that get executed in one server trip.
 
 ```csharp
 //product count future
 var prodCountP = _dbContext.WrapQuery(_dbContext.Products.All())
-                           .Count().Deferred();
+                           .Count()
+                           .Deferred();
 
 //most expensive 10 products future
 var expProdsP = _dbContext.WrapQuery(_dbContext.Products.All().OrderByDescending(p => p.Price).Take(10))
                           .Deferred();
 
 //get customer by id - executes all queries
-var customer = await _dbContext.Customers.Get(customerId).Deferred().ValueAsync();
-var prodCount = await prodCountP.ValueAsync(); //returns value
-var expProds = await expProdsP.ListAsync(); //returns value
+var customer = await _dbContext.Customers
+                               .Get(customerId)
+                               .Deferred()
+                               .ValueAsync();
+var prodCount = await prodCountP.ValueAsync(); //returns one value
+var expProds = await expProdsP.ListAsync(); //returns list
+```
+
+
+## Conditional Queries
+If you need to update or delete a set of records that meet a condition, you don't need to load them in memory. Just write an expression and it will be evaluated immediately.
+You should always run your commands inside a transaction with `BeginTransaction()` and `CommitTransactionAsync`.
+
+### UpdateWhereAsync
+Increase price by 5 for all products that are less than 100, without loading them in memory.
+
+```csharp
+await _dbContext.Products.UpdateWhereAsync(p => p.Price < 100, p => new { Price = p.Price + 5 });
+```
+
+### DeleteWhereAsync
+Delete products that are too cheap, without loading them in memory.
+
+```csharp
+await _dbContext.Products.DeleteWhereAsync(p => p.Price < 2);
 ```
 
 
@@ -128,11 +151,15 @@ IUnitOfWork exposes:
 
 
 ## Procedures/Queries
-In some rare cases you need to execute your own queries and NHUnit provides this functionality:
-- ExecuteListAsync
-- ExecuteScalarAsync
-- ExecuteNonQueryAsync
-- ExecuteMultipleQueries
+In some rare cases you need to execute your own queries/procedures and NHUnit provides this functionality:
+- ExecuteListAsync : return a list of values
+
+```csharp
+var sqlQuery = @"select Id, FirstName, LastName, BirthDate  from ""Customer""";
+var customers = await _dbContext.ExecuteListAsync<Customer>(sqlQuery, null, cancellationToken);
+```
+
+- ExecuteScalarAsync : return single value/object
 
 ```csharp
 var sqlQuery = @"select Id as CustomerId,
@@ -141,4 +168,32 @@ var sqlQuery = @"select Id as CustomerId,
                         from ""Customer""
                         where Id= :customerId";
 var customResult = await _dbContext.ExecuteScalarAsync<SqlQueryCustomResult>(sqlQuery, new { customerId = 11 });
+```
+
+- ExecuteNonQueryAsync : no value returned
+
+```csharp
+var sqlQuery = @"update ""Product"" set price=price+1 where price< :productPrice";
+await _dbContext.ExecuteNonQueryAsync(sqlQuery, new { productPrice = 5 }, cancellationToken);
+```
+
+- ExecuteMultipleQueriesAsync : return multiple result sets
+
+```csharp
+var sqlQuery = @"select Id as CustomerId,
+                        Concat(FirstName,' ',LastName) as FullName,
+                        BirthDate
+                 from ""Customer""
+                 where Id= :customerId;
+
+                select count(*) Count from ""Customer"";";
+var customResult = await _dbContext.ExecuteMultipleQueriesAsync(sqlQuery, //query
+    new { customerId }, //parameters: property name must be the same as the parameter
+    cancellationToken,
+    typeof(SqlQueryCustomResult), //first result type
+    typeof(long));//second result type
+
+//The results are returned in order in their own collection.
+var customer = (SqlQueryCustomResult)customResult[0].FirstOrDefault(); //we might not have any results
+var customerCount = (long)customResult[1].First(); //the type must match
 ```
